@@ -59,7 +59,7 @@ ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386 elf64-x86-64-freebsd e
     CFLAGS += -I$(RTE_SDK)/$(RTE_TARGET)/include -msse4.2 -mpopcnt
     CFLAGS += -DCONFIG_AUTO_LKL_VIRTIO_NET_DPDK
     LDFLAGS +=-L$(RTE_SDK)/$(RTE_TARGET)/lib
-    LDFLAGS +=-Wl,--whole-archive -ldpdk -Wl,--no-whole-archive -lm -ldl
+    LDFLAGS +=-Wl,--whole-archive -ldpdk -Wl,--no-whole-archive -lm #-ldl
   endif
   # Virtual Distributed Ethernet configuration
   ifeq ($(vde),yes)
@@ -127,7 +127,8 @@ TEST_TARGETS        := test valgrind gdb
 
 $(OUTPUT)tests/boot: $(OUTPUT)tests/boot-in.o $(OUTPUT)liblkl.a
 $(OUTPUT)tests/net-test: $(OUTPUT)tests/net-test-in.o $(OUTPUT)liblkl.a
-$(TEST_TARGETS): $(OUTPUT)tests/boot $(OUTPUT)tests/net-test
+$(OUTPUT)tests/sim_init-test: $(OUTPUT)tests/sim_init-test-in.o $(OUTPUT)liblkl.a
+$(TEST_TARGETS): $(OUTPUT)tests/boot $(OUTPUT)tests/net-test $(OUTPUT)tests/sim_init-test
 
 # because of libdl, liblkl-hijack will not compile on windows
 # fortunately, the test target will handle a missing libhijack.so correctly
@@ -145,7 +146,7 @@ $(OUTPUT)lib/lkl.o:
 $(OUTPUT)liblkl.a: $(OUTPUT)lib/lkl-in.o $(OUTPUT)lib/lkl.o
 	$(QUIET_AR)$(AR) -rc $@ $^
 
-$(OUTPUT)liblkl$(SOSUF) $(OUTPUT)liblkl-hijack$(SOSUF) $(OUTPUT)lklfuse$(EXESUF) $(OUTPUT)fs2tar$(EXESUF) $(OUTPUT)cptofs$(EXESUF) $(OUTPUT)tests/boot $(OUTPUT)tests/net-test:
+$(OUTPUT)liblkl$(SOSUF) $(OUTPUT)liblkl-hijack$(SOSUF) $(OUTPUT)lklfuse$(EXESUF) $(OUTPUT)fs2tar$(EXESUF) $(OUTPUT)cptofs$(EXESUF) $(OUTPUT)tests/boot $(OUTPUT)tests/net-test $(OUTPUT)tests/sim_init-test:
 	$(QUIET_LINK)$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(OUTPUT)cpfromfs$(EXESUF): cptofs$(EXESUF)
@@ -171,7 +172,7 @@ clean:
 	$(call QUIET_CLEAN, "host libraries")$(RM) $(OUTPUT)/liblkl.a liblkl$(SOSUF)
 	$(call QUIET_CLEAN, "hijack library")$(RM) $(OUTPUT)/liblkl-hijack$(SOSUF)
 	$(call QUIET_CLEAN, programs)$(RM) $(ALL_PROGRAMS)
-	$(call QUIET_CLEAN, tests)$(RM) tests/boot tests/net-test
+	$(call QUIET_CLEAN, tests)$(RM) tests/boot tests/net-test tests/sim_init-test
 
 $(TEST_TARGETS):
 	$(MAKE) -C tests $@

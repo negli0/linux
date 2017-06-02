@@ -20,6 +20,15 @@ static int is_running;
 void (*pm_power_off)(void) = NULL;
 static unsigned long mem_size = 64 * 1024 * 1024;
 
+void sim_init(struct SimExported *exported, const struct SimImpoerted *imported,
+		struct SimKernel *kernel) 
+{
+	char command_line[COMMAND_LINE_SIZE] = {0};
+	struct lkl_host_operations ops;
+
+	lkl_start_kernel(&ops, command_line);
+}
+
 long lkl_panic_blink(int state)
 {
 	lkl_ops->panic();

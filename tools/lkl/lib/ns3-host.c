@@ -5,21 +5,22 @@
 #include <string.h>
 #include <stdint.h>
 #include <lkl_host.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
+#include <linux/list.h>
 
-#include "../net-next-sim-2.6.36/arch/sim/include/sim.h"
-#include "../net-next-sim-2.6.36/arch/sim/include/sim-init.h"
-#include "../net-next-sim-2.6.36/arch/sim/include/sim-types.h"
-#include "../net-next-sim-2.6.36/arch/sim/include/sim-printf.h"
-#include "../net-next-sim-2.6.36/arch/sim/include/sim-assert.h"
+#include "./net-next-sim-2.6.36/arch/sim/include/sim.h"
+#include "./net-next-sim-2.6.36/arch/sim/include/sim-init.h"
+#include "./net-next-sim-2.6.36/arch/sim/include/sim-types.h"
+#include "./net-next-sim-2.6.36/arch/sim/include/sim-printf.h"
+#include "./net-next-sim-2.6.36/arch/sim/include/sim-assert.h"
 
-//struct SimTask {
-//	struct task_struct kernel_task;
-//	void *private;
-//};
-//
-//extern struct SimTask *sim_task_create(void *private, unsigned long pid);
+struct SimTask {
+	struct task_struct kernel_task;
+	void *private;
+};
 
-extern void *sim_malloc(unsigned long size);
+extern struct SimTask *sim_task_create(void *private, unsigned long pid);
 
 static void print(const char *str, int len)
 {
@@ -34,6 +35,7 @@ static void panic(void)
 static struct lkl_sem* sem_alloc(int count)
 {
 	// NOP
+	struct lkl_sem *sem;
 	return NULL;
 }
 
@@ -76,6 +78,7 @@ static void mutex_unlock(struct lkl_mutex *mutex)
 static lkl_thread_t thread_create(void (*f)(void *), void *arg)
 {
 	// NOP
+	struct SimTask task;
 	
 	return (lkl_thread_t) 0;
 }
@@ -93,19 +96,16 @@ static void thread_exit(void)
 static int thread_join(lkl_thread_t tid)
 {
 	// NOP
-	return 0;
 }
 
 static lkl_thread_t thread_self(void)
 {
 	// NOP
-	return 100;
 }
 
 static int thread_equal(lkl_thread_t a, lkl_thread_t b)
 {
 	// NOP
-	return 0;
 }
 
 static struct lkl_tls_key* tls_alloc(void (*destructor)(void *))
@@ -136,7 +136,7 @@ static void* tls_get(struct lkl_tls_key *key)
 //	// NOP
 //	return sim_malloc(count);
 //}
-//
+
 //static void mem_free(void *addr)
 //{
 //	// NOP
@@ -151,13 +151,12 @@ static unsigned long long time(void)
 static void* timer_alloc(void (*fn)(void *), void *arg)
 {
 	// NOP
-	return NULL;
+	
 }
 
 static int timer_set_oneshot(void *timer, unsigned long delta)
 {
 	// NOP
-	return 0;
 }
 
 static void timer_free(void *timer)
@@ -168,20 +167,17 @@ static void timer_free(void *timer)
 static void* lkl_ioremap(long addr, int size)
 {
 	// NOP
-	return NULL;
 }
 
 static int lkl_iomem_access(const __volatile__ void *addr, void *val, int size,
 		int write)
 {
 	// NOP
-	return 0;
 }
 
 static long gettid(void)
 {
 	// NOP
-	return 0;
 }
 
 static void jmp_buf_set(struct lkl_jmp_buf *jmpb, void (*f)(void))
@@ -220,27 +216,12 @@ struct lkl_host_operations lkl_host_ops = {
 	.timer_set_oneshot = timer_set_oneshot,
 	.timer_free = timer_free,
 	.print = print,
-	.mem_alloc = malloc,
-	.mem_free = free,
+	.mem_alloc = sim_malloc,
+	.mem_free = sim_free,
 	.ioremap = lkl_ioremap,
 	.iomem_access = lkl_iomem_access,
 	.virtio_devices = lkl_virtio_devs,
 	.gettid = gettid,
 	.jmp_buf_set = jmp_buf_set,
 	.jmp_buf_longjmp = jmp_buf_longjmp,
-};
-
-static int fd_get_capacity(struct lkl_disk disk, unsigned long long *res)
-{
-	return 0;
-}
-
-static int blk_request(struct lkl_disk disk, struct lkl_blk_req *req)
-{
-	return 0;
-}
-
-struct lkl_dev_blk_ops lkl_dev_blk_ops = {
-	.get_capacity = fd_get_capacity,
-	.request = blk_request,
 };

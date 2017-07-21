@@ -14,6 +14,7 @@
 #include <asm/cpu.h>
 
 struct lkl_host_operations *lkl_ops;
+extern struct lkl_host_operations lkl_host_ops;
 static char cmd_line[COMMAND_LINE_SIZE];
 static void *init_sem;
 static int is_running;
@@ -24,9 +25,9 @@ void sim_init(struct SimExported *exported, const struct SimImpoerted *imported,
 		struct SimKernel *kernel) 
 {
 	char command_line[COMMAND_LINE_SIZE] = {0};
-	struct lkl_host_operations ops;
+	//lkl_ops = exported;
 
-	lkl_start_kernel(&ops, command_line);
+	lkl_start_kernel(&lkl_host_ops, command_line);
 }
 
 long lkl_panic_blink(int state)

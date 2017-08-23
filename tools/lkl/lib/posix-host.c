@@ -11,15 +11,25 @@
 #include "../net-next-sim-2.6.36/arch/sim/include/sim-types.h"
 #include "../net-next-sim-2.6.36/arch/sim/include/sim-printf.h"
 #include "../net-next-sim-2.6.36/arch/sim/include/sim-assert.h"
+#include "../net-next-sim-2.6.36/arch/sim/include/sim-assert.h"
 
-//struct SimTask {
-//	struct task_struct kernel_task;
-//	void *private;
-//};
-//
-//extern struct SimTask *sim_task_create(void *private, unsigned long pid);
+#include "../ns-3-dce/model/dce-semaphore.h"
+#include "../ns-3-dce/model/dce-pthread.h"
+#include "../ns-3-dce/model/dce-time.h"
+
+struct lkl_mutex {
+	pthread_mutex_t mutex;
+};
+
+struct lkl_sem {
+	sem_t sem;
+};
+
 
 extern void *sim_malloc(unsigned long size);
+extern void sim_free(void *buffer);
+extern int dce_sem_init(sem_t *sem, int pshared, unsigned int value);
+extern time_t dce_time(time_t *t);
 
 static void print(const char *str, int len)
 {
@@ -33,34 +43,78 @@ static void panic(void)
 
 static struct lkl_sem* sem_alloc(int count)
 {
-	// NOP
-	return NULL;
+	struct lkl_sem *sem;
+
+	sem = sim_malloc(sizeof(struct lkl_sem));
+	if (!sem) {
+		return NULL;
+	}
+	if (dce_sem_init((sem_t *)sem, 0, count) < 0) {
+		lkl_printf("dce_sem_init: %s\n", strerror(errno));
+		return NULL;
+	}
+
+	return sem;
 }
 
 static void sem_free(struct lkl_sem *sem)
 {
-	// NOP
+	dce_sem_destroy(&sem->sem);
+	sim_free(sem);
 }
 
 static void sem_up(struct lkl_sem *sem)
 {
-	// NOP
+	dce_sem_post((sem_t *)sem);
 }
 
 static void sem_down(struct lkl_sem *sem)
 {
-	// NOP
+	int err;
+
+	do {
+		err = dce_sem_wait(&sem->sem);
+	} while (err < 0 && errno == EINTR);
+
+	if (err < 0 && errno != EINTR) {
+		lkl_printf("sem_wait: %s\n", strerror(errno));
+	}
 }
 
 static struct lkl_mutex* mutex_alloc(int recursive)
 {
-	// NOP
-	return NULL;
+	struct lkl_mutex *_mutex = sim_malloc(sizeof(struct lkl_mutex));
+	pthread_mutex_t *mutex = NULL;
+	pthread_mutexattr_t attr;
+	int ret;
+
+	if (!_mutex) {
+		return NULL;
+	}
+
+	if ((ret = dce_pthread_mutexattr_init(&attr)) < 0) {
+		return NULL;
+	}
+
+	if (recursive) {
+		ret = dce_pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+		if (ret < 0) {
+			return NULL;
+		}
+	}
+
+	if ((ret = dce_pthread_mutex_init(mutex, &attr)) < 0) {
+		return NULL;
+	}
+
+	return _mutex;
 }
 
-static void mutex_free(struct lkl_mutex *mutex)
+static void mutex_free(struct lkl_mutex *_mutex)
 {
-	// NOP
+	pthread_mutex_t *mutex = &_mutex->mutex;
+	dce_pthread_mutex_destroy(mutex);
+	sim_free(_mutex);
 }
 
 static void mutex_lock(struct lkl_mutex *mutex)
@@ -98,8 +152,7 @@ static int thread_join(lkl_thread_t tid)
 
 static lkl_thread_t thread_self(void)
 {
-	// NOP
-	return 100;
+	return (lkl_thread_t)pthread_self();
 }
 
 static int thread_equal(lkl_thread_t a, lkl_thread_t b)
@@ -131,21 +184,12 @@ static void* tls_get(struct lkl_tls_key *key)
 	return NULL;
 }
 
-//static void* mem_alloc(unsigned long count)
-//{
-//	// NOP
-//	return sim_malloc(count);
-//}
-//
-//static void mem_free(void *addr)
-//{
-//	// NOP
-//}
-
-static unsigned long long time(void)
+static unsigned long long _time(void)
 {
-	// NOP
-	return 0;
+	struct timespec ts;
+	dce_clock_gettime(CLOCK_MONOTONIC, &ts);
+
+	return 1e9*ts.tv_sec + ts.tv_nsec;
 }
 
 static void* timer_alloc(void (*fn)(void *), void *arg)
@@ -215,13 +259,13 @@ struct lkl_host_operations lkl_host_ops = {
 	.tls_free = tls_free,
 	.tls_set = tls_set,
 	.tls_get = tls_get,
-	.time = time,
+	.time = _time,
 	.timer_alloc = timer_alloc,
 	.timer_set_oneshot = timer_set_oneshot,
 	.timer_free = timer_free,
 	.print = print,
-	.mem_alloc = malloc,
-	.mem_free = free,
+	.mem_alloc = sim_malloc,
+	.mem_free = sim_free,
 	.ioremap = lkl_ioremap,
 	.iomem_access = lkl_iomem_access,
 	.virtio_devices = lkl_virtio_devs,
@@ -244,3 +288,4 @@ struct lkl_dev_blk_ops lkl_dev_blk_ops = {
 	.get_capacity = fd_get_capacity,
 	.request = blk_request,
 };
+

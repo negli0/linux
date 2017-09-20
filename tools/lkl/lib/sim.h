@@ -60,7 +60,7 @@ struct SimImported {
 	void (*poll_event) (int flag, void *context);
 };
 
-typedef void (*SimInit) (const struct SimImported *, struct SimKernel *kernel);
+typedef void (*SimInit) (const struct SimImported *, struct SimKernel *g_kernel);
 
 #ifdef __cplusplus
 }

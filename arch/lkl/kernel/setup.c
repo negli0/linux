@@ -13,6 +13,7 @@
 #include <asm/syscalls.h>
 #include <asm/cpu.h>
 
+
 struct lkl_host_operations *lkl_ops;
 extern struct lkl_host_operations lkl_host_ops;
 static char cmd_line[COMMAND_LINE_SIZE];
@@ -21,11 +22,15 @@ static int is_running;
 void (*pm_power_off)(void) = NULL;
 static unsigned long mem_size = 64 * 1024 * 1024;
 
-void sim_init(struct SimExported *exported, const struct SimImpoerted *imported,
+extern struct SimImported *g_imported;
+extern struct SimKernel *g_kernel;
+
+void sim_init(struct SimExported *exported, const struct SimImported *imported,
 		struct SimKernel *kernel) 
 {
 	char command_line[COMMAND_LINE_SIZE] = {0};
-	//lkl_ops = exported;
+	g_imported = imported;
+	g_kernel = kernel;
 
 	lkl_start_kernel(&lkl_host_ops, command_line);
 }

@@ -27,7 +27,7 @@ endef
 
 QUICK?=0
 VALGRIND_TEXT?=0
-FS_TYPES?=ext4 btrfs vfat xfs
+FS_TYPES?=ext4 bfs vfat xfs
 
 # The hijack tests are very time consuming, so run with `QUICK=1 make
 # test` if you want to stick to the unit tests

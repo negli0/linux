@@ -15,13 +15,13 @@
 int main(int argc, char **argv) 
 {
 	char boot_cmdline[256] = {'\0'};
-	struct lkl_host_operations ops;
 	int kernel;
 	int ret = 0;
 
 	/* call lkl_start_kernel() in sim_init() */
 	//ret = sim_init(&lkl_host_ops, boot_cmdline);
-	sim_init(&ops, boot_cmdline, &kernel);
+	sim_init(&lkl_host_ops, boot_cmdline, &kernel);
+	//lkl_start_kernel(&lkl_host_ops, "");
 	if (ret < 0) {
 		fprintf(stderr, "cannot start kernel: %d\n", ret);
 		exit(ret);

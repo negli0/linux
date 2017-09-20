@@ -1,0 +1,15 @@
+10.0.0.0/24 dev sim0  proto kernel  scope link  src 10.0.0.1 
+default via 10.0.0.2 dev sim0 
+broadcast 127.255.255.255 dev lo  table local  proto kernel  scope link  src 127.0.0.1 
+local 10.0.0.1 dev sim0  table local  proto kernel  scope host  src 10.0.0.1 
+broadcast 10.0.0.0 dev sim0  table local  proto kernel  scope link  src 10.0.0.1 
+broadcast 10.0.0.255 dev sim0  table local  proto kernel  scope link  src 10.0.0.1 
+broadcast 127.0.0.0 dev lo  table local  proto kernel  scope link  src 127.0.0.1 
+local 127.0.0.1 dev lo  table local  proto kernel  scope host  src 127.0.0.1 
+local 127.0.0.0/8 dev lo  table local  proto kernel  scope host  src 127.0.0.1 
+fe80::/64 dev sim0  proto kernel  metric 256  mtu 1500 advmss 1440 hoplimit 0
+unreachable default dev lo  table 0  proto kernel  metric -1  error -101 hoplimit 255
+local ::1 via :: dev lo  table local  proto none  metric 0  mtu 16436 advmss 16376 hoplimit 0
+local fe80::200:ff:fe00:1 via :: dev lo  table local  proto none  metric 0  mtu 16436 advmss 16376 hoplimit 0
+ff00::/8 dev sim0  table local  metric 256  mtu 1500 advmss 1440 hoplimit 0
+unreachable default dev lo  table 0  proto kernel  metric -1  error -101 hoplimit 255

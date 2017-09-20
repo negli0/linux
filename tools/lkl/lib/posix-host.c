@@ -5,13 +5,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <lkl_host.h>
-
-#include "../net-next-sim-2.6.36/arch/sim/include/sim.h"
-#include "../net-next-sim-2.6.36/arch/sim/include/sim-init.h"
-#include "../net-next-sim-2.6.36/arch/sim/include/sim-types.h"
-#include "../net-next-sim-2.6.36/arch/sim/include/sim-printf.h"
-#include "../net-next-sim-2.6.36/arch/sim/include/sim-assert.h"
-#include "../net-next-sim-2.6.36/arch/sim/include/sim-assert.h"
+#include "sim.h"
 
 #include "../ns-3-dce/model/dce-semaphore.h"
 #include "../ns-3-dce/model/dce-pthread.h"
@@ -25,11 +19,18 @@ struct lkl_sem {
 	sem_t sem;
 };
 
+static struct SimImported g_imported;
+static struct SimKernel *g_kernel;
 
-extern void *sim_malloc(unsigned long size);
-extern void sim_free(void *buffer);
-extern int dce_sem_init(sem_t *sem, int pshared, unsigned int value);
-extern time_t dce_time(time_t *t);
+static void *sim_malloc(unsigned long size)
+{
+	return g_imported.malloc(g_kernel, size);
+}
+
+static void sim_free(void *buffer)
+{
+	g_imported.free(g_kernel, buffer);
+}
 
 static void print(const char *str, int len)
 {
@@ -45,11 +46,11 @@ static struct lkl_sem* sem_alloc(int count)
 {
 	struct lkl_sem *sem;
 
-	sem = sim_malloc(sizeof(struct lkl_sem));
+	sem = g_imported.malloc(g_kernel, sizeof(struct lkl_sem));
 	if (!sem) {
 		return NULL;
 	}
-	if (dce_sem_init((sem_t *)sem, 0, count) < 0) {
+	if (g_imported.sem_init(g_kernel, (sem_t *)sem, 0, count) < 0) {
 		lkl_printf("dce_sem_init: %s\n", strerror(errno));
 		return NULL;
 	}
@@ -59,13 +60,13 @@ static struct lkl_sem* sem_alloc(int count)
 
 static void sem_free(struct lkl_sem *sem)
 {
-	dce_sem_destroy(&sem->sem);
-	sim_free(sem);
+	g_imported.sem_destroy(g_kernel, &sem->sem);
+	g_imported.free(g_kernel, sem);
 }
 
 static void sem_up(struct lkl_sem *sem)
 {
-	dce_sem_post((sem_t *)sem);
+	g_imported.sem_post(g_kernel, (sem_t *)sem);
 }
 
 static void sem_down(struct lkl_sem *sem)
@@ -73,7 +74,7 @@ static void sem_down(struct lkl_sem *sem)
 	int err;
 
 	do {
-		err = dce_sem_wait(&sem->sem);
+		err = g_imported.sem_wait(g_kernel, &sem->sem);
 	} while (err < 0 && errno == EINTR);
 
 	if (err < 0 && errno != EINTR) {
@@ -83,7 +84,7 @@ static void sem_down(struct lkl_sem *sem)
 
 static struct lkl_mutex* mutex_alloc(int recursive)
 {
-	struct lkl_mutex *_mutex = sim_malloc(sizeof(struct lkl_mutex));
+	struct lkl_mutex *_mutex = g_imported.malloc(g_kernel, sizeof(struct lkl_mutex));
 	pthread_mutex_t *mutex = NULL;
 	pthread_mutexattr_t attr;
 	int ret;
@@ -92,18 +93,18 @@ static struct lkl_mutex* mutex_alloc(int recursive)
 		return NULL;
 	}
 
-	if ((ret = dce_pthread_mutexattr_init(&attr)) < 0) {
+	if ((ret = g_imported.pthread_mutexattr_init(g_kernel, &attr)) < 0) {
 		return NULL;
 	}
 
 	if (recursive) {
-		ret = dce_pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+		ret = g_imported.pthread_mutexattr_settype(g_kernel, &attr, PTHREAD_MUTEX_RECURSIVE);
 		if (ret < 0) {
 			return NULL;
 		}
 	}
 
-	if ((ret = dce_pthread_mutex_init(mutex, &attr)) < 0) {
+	if ((ret = g_imported.pthread_mutex_init(g_kernel, mutex, &attr)) < 0) {
 		return NULL;
 	}
 
@@ -113,7 +114,7 @@ static struct lkl_mutex* mutex_alloc(int recursive)
 static void mutex_free(struct lkl_mutex *_mutex)
 {
 	pthread_mutex_t *mutex = &_mutex->mutex;
-	dce_pthread_mutex_destroy(mutex);
+	g_imported.pthread_mutex_destroy(g_kernel, mutex);
 	sim_free(_mutex);
 }
 
@@ -187,7 +188,7 @@ static void* tls_get(struct lkl_tls_key *key)
 static unsigned long long _time(void)
 {
 	struct timespec ts;
-	dce_clock_gettime(CLOCK_MONOTONIC, &ts);
+	g_imported.clock_gettime(g_kernel, CLOCK_MONOTONIC, &ts);
 
 	return 1e9*ts.tv_sec + ts.tv_nsec;
 }
@@ -238,6 +239,7 @@ static void jmp_buf_longjmp(struct lkl_jmp_buf *jmpb, int val)
 	// NOP
 }
 
+
 struct lkl_host_operations lkl_host_ops = {
 	.print = print,
 	.panic = panic,
@@ -263,7 +265,6 @@ struct lkl_host_operations lkl_host_ops = {
 	.timer_alloc = timer_alloc,
 	.timer_set_oneshot = timer_set_oneshot,
 	.timer_free = timer_free,
-	.print = print,
 	.mem_alloc = sim_malloc,
 	.mem_free = sim_free,
 	.ioremap = lkl_ioremap,

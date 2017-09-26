@@ -32,6 +32,8 @@ void sim_init(struct SimExported *exported, const struct SimImported *imported,
 	g_imported = imported;
 	g_kernel = kernel;
 
+//	exported->task_get_private = lkl_task_get_private;
+
 	lkl_start_kernel(&lkl_host_ops, command_line);
 }
 

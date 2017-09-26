@@ -1,4 +1,3 @@
-#include "./sim.h"
 #include <stdlib.h>
 #include <signal.h>
 #include <assert.h>
@@ -11,6 +10,9 @@
 #include "../ns-3-dce/model/dce-pthread.h"
 #include "../ns-3-dce/model/dce-time.h"
 
+#include "../include/sim-init.h"
+#include "../include/sim.h"
+
 struct lkl_mutex {
 	pthread_mutex_t mutex;
 };
@@ -22,12 +24,12 @@ struct lkl_sem {
 struct SimImported *g_imported;
 struct SimKernel *g_kernel;
 
-static void *sim_malloc(unsigned long size)
+void *sim_malloc(unsigned long size)
 {
 	return g_imported->malloc(g_kernel, size);
 }
 
-static void sim_free(void *buffer)
+void sim_free(void *buffer)
 {
 	g_imported->free(g_kernel, buffer);
 }
